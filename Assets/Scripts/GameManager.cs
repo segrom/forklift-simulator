@@ -4,6 +4,7 @@ using Behaviours;
 using Behaviours.FolkLift;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Zenject;
 
 public class GameManager : MonoBehaviour, IGameManager, IInitializable
@@ -14,10 +15,24 @@ public class GameManager : MonoBehaviour, IGameManager, IInitializable
     private Level _currentLevel;
     private ForkLiftBase _forkLift;
     
+    private MainActions _input;
+    
     public void Initialize()
     {
         Debug.Log("Game Manager Started");
         InitializeInternal().Forget(Debug.LogException);
+        
+        _input = new MainActions();
+        _input.UI.Exit.performed += HandleExit;
+        Application.focusChanged += HandleFocusChange;
+        Cursor.visible = false;
+        Application.targetFrameRate = 60;
+        QualitySettings.vSyncCount = 1;
+    }
+
+    private void HandleFocusChange(bool hasFocus)
+    {
+        Cursor.visible = !hasFocus;
     }
 
     private async UniTask InitializeInternal()
@@ -29,6 +44,7 @@ public class GameManager : MonoBehaviour, IGameManager, IInitializable
         await LoadLevel("Level1");
         await UniTask.Delay(100);
         _splashScreen.Hide();
+        _input.Enable();
     }
 
     private async UniTask LoadLevel(string levelName)
@@ -44,5 +60,19 @@ public class GameManager : MonoBehaviour, IGameManager, IInitializable
         Resources.UnloadUnusedAssets();
 
         _currentLevel.BeginGameLoop().Forget(Debug.LogException);
+    }
+
+    private void HandleExit(InputAction.CallbackContext _)
+    {
+        Debug.Log("Game Manager Exit");
+        Application.Quit();
+    }
+    
+    private void OnDestroy()
+    {
+        _input.Disable();
+        _input.UI.Exit.performed -= HandleExit;
+        Application.focusChanged -= HandleFocusChange;
+        Cursor.visible = true;
     }
 }
